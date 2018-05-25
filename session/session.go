@@ -1,15 +1,12 @@
 package session
 
 import (
+	"fmt"
 	"go/build"
+	"io"
 	"os"
 	"path/filepath"
-
 	"strings"
-
-	"io"
-
-	"fmt"
 
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
