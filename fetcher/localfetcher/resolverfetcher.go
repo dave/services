@@ -1,4 +1,4 @@
-package localresolverfetcher
+package localfetcher
 
 import (
 	"context"
