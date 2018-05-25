@@ -2,29 +2,19 @@ package localfileserver
 
 import (
 	"context"
-
+	"fmt"
 	"io"
-
-	"path/filepath"
-
 	"net/http"
 	"net/url"
-
-	"fmt"
 	"os"
-
+	"path/filepath"
 	"strings"
-
-	"github.com/dave/jsgo/config"
 )
 
-func New(dir string) *Fileserver {
-	if !config.LOCAL {
-		panic("localfileserver should only be used in local mode")
+func New(dir string, sites map[string]string) *Fileserver {
+	for host, bucket := range sites {
+		go http.ListenAndServe(host, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, bucket)))))
 	}
-	go http.ListenAndServe(config.SrcHost, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, config.SrcBucket)))))
-	go http.ListenAndServe(config.PkgHost, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, config.PkgBucket)))))
-	go http.ListenAndServe(config.IndexHost, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, config.IndexBucket)))))
 	return &Fileserver{
 		dir: dir,
 	}

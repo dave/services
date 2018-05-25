@@ -2,22 +2,17 @@ package gcsfileserver
 
 import (
 	"context"
-
-	"github.com/dave/jsgo/config"
-
 	"io"
 
 	"cloud.google.com/go/storage"
 )
 
-func New(client *storage.Client) *Fileserver {
+func New(client *storage.Client, buckets []string) *Fileserver {
 	f := new(Fileserver)
 	f.client = client
-	f.buckets = map[string]*storage.BucketHandle{
-		config.SrcBucket:   client.Bucket(config.SrcBucket),
-		config.PkgBucket:   client.Bucket(config.PkgBucket),
-		config.IndexBucket: client.Bucket(config.IndexBucket),
-		config.GitBucket:   client.Bucket(config.GitBucket),
+	f.buckets = map[string]*storage.BucketHandle{}
+	for _, b := range buckets {
+		f.buckets[b] = client.Bucket(b)
 	}
 	return f
 }

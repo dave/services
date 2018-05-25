@@ -1,20 +1,17 @@
 package gitfetcher
 
 import (
+	"bufio"
 	"context"
 	"errors"
-	"strconv"
-
-	"bufio"
 	"fmt"
 	"io"
-	"regexp"
-
 	"net/url"
-
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/dave/jsgo/config"
 	"github.com/dave/services"
 	"gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-billy.v4"
@@ -26,50 +23,41 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
-/*
-func init() {
-	go func() {
-		for {
-			<-time.After(time.Second)
-			fmt.Println(runtime.NumGoroutine())
-		}
-	}()
-	go func() {
-		for {
-			<-time.After(time.Second * 10)
-			pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
-		}
-	}()
-}
-*/
-
 const FNAME = "repo.bin"
 
-func New(cache, fileserver services.Fileserver) *Fetcher {
+func New(cache, fileserver services.Fileserver, configGitSaveTimeout, configGitCloneTimeout time.Duration, configGitMaxObjects int, configGitBucket string) *Fetcher {
 	return &Fetcher{
-		cache:      cache,
-		fileserver: fileserver,
+		cache:                 cache,
+		fileserver:            fileserver,
+		configGitSaveTimeout:  configGitSaveTimeout,
+		configGitCloneTimeout: configGitCloneTimeout,
+		configGitMaxObjects:   configGitMaxObjects,
+		configGitBucket:       configGitBucket,
 	}
 }
 
 type Fetcher struct {
-	cache, fileserver services.Fileserver
+	cache, fileserver     services.Fileserver
+	configGitSaveTimeout  time.Duration
+	configGitCloneTimeout time.Duration
+	configGitMaxObjects   int
+	configGitBucket       string
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, url string) (billy.Filesystem, error) {
 
-	persisted, sfs, store, worktree, err := initFilesystems()
+	persisted, sfs, store, worktree, err := f.initFilesystems()
 	if err != nil {
 		return nil, err
 	}
 
-	exists, err := load(ctx, f.cache, url, persisted)
+	exists, err := f.load(ctx, f.cache, url, persisted)
 	if err != nil {
 		return nil, err
 	}
 
 	if !exists {
-		exists, err = load(ctx, f.fileserver, url, persisted)
+		exists, err = f.load(ctx, f.fileserver, url, persisted)
 		if err != nil {
 			return nil, err
 		}
@@ -78,20 +66,20 @@ func (f *Fetcher) Fetch(ctx context.Context, url string) (billy.Filesystem, erro
 	var changed bool
 
 	if exists {
-		if changed, err = doFetch(ctx, url, store, worktree); err != nil {
+		if changed, err = f.doFetch(ctx, url, store, worktree); err != nil {
 			// If error while fetching, try a full clone before exiting. Make sure we re-initialise
 			// the filesystems.
-			persisted, sfs, store, worktree, err = initFilesystems()
+			persisted, sfs, store, worktree, err = f.initFilesystems()
 			if err != nil {
 				return nil, err
 			}
-			if changed, err = doClone(ctx, url, store, worktree); err != nil {
+			if changed, err = f.doClone(ctx, url, store, worktree); err != nil {
 				return nil, err
 			}
 		}
 
 	} else {
-		if changed, err = doClone(ctx, url, store, worktree); err != nil {
+		if changed, err = f.doClone(ctx, url, store, worktree); err != nil {
 			return nil, err
 		}
 	}
@@ -100,16 +88,16 @@ func (f *Fetcher) Fetch(ctx context.Context, url string) (billy.Filesystem, erro
 		return nil, err
 	}
 	// we don't want the context to be cancelled half way through saving, so let's create a new one:
-	gitctx, _ := context.WithTimeout(context.Background(), config.GitSaveTimeout)
+	gitctx, _ := context.WithTimeout(context.Background(), f.configGitSaveTimeout)
 	if changed {
-		go save(gitctx, f.fileserver, url, persisted)
+		go f.save(gitctx, f.fileserver, url, persisted)
 	}
-	go save(gitctx, f.cache, url, persisted)
+	go f.save(gitctx, f.cache, url, persisted)
 
 	return worktree, nil
 }
 
-func initFilesystems() (persisted billy.Filesystem, sfs sivafs.SivaFS, store *filesystem.Storage, worktree billy.Filesystem, err error) {
+func (f *Fetcher) initFilesystems() (persisted billy.Filesystem, sfs sivafs.SivaFS, store *filesystem.Storage, worktree billy.Filesystem, err error) {
 
 	persisted = memfs.New()
 
@@ -128,7 +116,7 @@ func initFilesystems() (persisted billy.Filesystem, sfs sivafs.SivaFS, store *fi
 	return persisted, sfs, store, worktree, nil
 }
 
-func doFetch(ctx context.Context, url string, store *filesystem.Storage, worktree billy.Filesystem) (changed bool, err error) {
+func (f *Fetcher) doFetch(ctx context.Context, url string, store *filesystem.Storage, worktree billy.Filesystem) (changed bool, err error) {
 
 	// Opening git repo
 	repo, err := git.Open(store, worktree)
@@ -171,10 +159,10 @@ func doFetch(ctx context.Context, url string, store *filesystem.Storage, worktre
 		// repo has changed - this will mean it's saved after the operation
 		changed = true
 
-		ctx, cancel := context.WithTimeout(ctx, config.GitCloneTimeout)
+		ctx, cancel := context.WithTimeout(ctx, f.configGitCloneTimeout)
 		defer cancel()
 
-		pw, errchan := newProgressWatcher()
+		pw, errchan := newProgressWatcher(f.configGitMaxObjects)
 		defer pw.stop()
 		var errFromWatcher error
 		go func() {
@@ -207,12 +195,12 @@ func doFetch(ctx context.Context, url string, store *filesystem.Storage, worktre
 	return changed, nil
 }
 
-func doClone(ctx context.Context, url string, store *filesystem.Storage, worktree billy.Filesystem) (changed bool, err error) {
+func (f *Fetcher) doClone(ctx context.Context, url string, store *filesystem.Storage, worktree billy.Filesystem) (changed bool, err error) {
 
-	ctx, cancel := context.WithTimeout(ctx, config.GitCloneTimeout)
+	ctx, cancel := context.WithTimeout(ctx, f.configGitCloneTimeout)
 	defer cancel()
 
-	pw, errchan := newProgressWatcher()
+	pw, errchan := newProgressWatcher(f.configGitMaxObjects)
 	defer pw.stop()
 	var errFromWatcher error
 	go func() {
@@ -241,7 +229,7 @@ var progressRegex = []*regexp.Regexp{
 	regexp.MustCompile(`Finding sources: +\d+% \(\d+/(\d+)\)`),
 }
 
-func newProgressWatcher() (*progressWatcher, chan error) {
+func newProgressWatcher(configGitMaxObjects int) (*progressWatcher, chan error) {
 	r, w := io.Pipe()
 	p := &progressWatcher{
 		w: w,
@@ -265,8 +253,8 @@ func newProgressWatcher() (*progressWatcher, chan error) {
 			if !ok {
 				return
 			}
-			if matched, objects := matchProgress(scanner.Text()); matched && objects > config.GitMaxObjects {
-				errchan <- fmt.Errorf("too many git objects (max %d): %d", config.GitMaxObjects, objects)
+			if matched, objects := matchProgress(scanner.Text()); matched && objects > configGitMaxObjects {
+				errchan <- fmt.Errorf("too many git objects (max %d): %d", configGitMaxObjects, objects)
 			}
 		}
 	}()
@@ -300,25 +288,25 @@ func matchProgress(s string) (matched bool, objects int) {
 	return false, 0
 }
 
-func save(ctx context.Context, fileserver services.Fileserver, repoUrl string, fs billy.Filesystem) error {
+func (f *Fetcher) save(ctx context.Context, fileserver services.Fileserver, repoUrl string, fs billy.Filesystem) error {
 	// open the persisted git file for reading
 	persisted, err := fs.Open(FNAME)
 	if err != nil {
 		return err
 	}
 	defer persisted.Close()
-	if _, err := fileserver.Write(ctx, config.GitBucket, url.PathEscape(repoUrl), persisted, true, "application/octet-stream", "no-cache"); err != nil {
+	if _, err := fileserver.Write(ctx, f.configGitBucket, url.PathEscape(repoUrl), persisted, true, "application/octet-stream", "no-cache"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func load(ctx context.Context, fileserver services.Fileserver, repoUrl string, fs billy.Filesystem) (found bool, err error) {
+func (f *Fetcher) load(ctx context.Context, fileserver services.Fileserver, repoUrl string, fs billy.Filesystem) (found bool, err error) {
 	// open / create the persisted git file for writing
 	persisted, err := fs.Create(FNAME)
 	if err != nil {
 		return false, err
 	}
 	defer persisted.Close()
-	return fileserver.Read(ctx, config.GitBucket, url.PathEscape(repoUrl), persisted)
+	return fileserver.Read(ctx, f.configGitBucket, url.PathEscape(repoUrl), persisted)
 }

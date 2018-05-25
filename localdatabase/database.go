@@ -2,19 +2,15 @@ package localdatabase
 
 import (
 	"context"
-	"errors"
-	"math/rand"
-	"reflect"
-
-	"time"
-
-	"fmt"
-	"net/url"
-	"path/filepath"
-
-	"os"
-
 	"encoding/json"
+	"errors"
+	"fmt"
+	"math/rand"
+	"net/url"
+	"os"
+	"path/filepath"
+	"reflect"
+	"time"
 
 	"cloud.google.com/go/datastore"
 )
