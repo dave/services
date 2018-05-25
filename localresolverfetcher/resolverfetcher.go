@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/dave/services/copier"
 	"golang.org/x/sync/singleflight"
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
@@ -161,7 +162,7 @@ func (f *ResolverFetcher) Fetch(ctx context.Context, url string) (billy.Filesyst
 		return nil, err
 	}
 
-	if err := Copy("/", "/", wt.Filesystem, fs); err != nil {
+	if err := copier.Copy("/", "/", wt.Filesystem, fs); err != nil {
 		return nil, err
 	}
 

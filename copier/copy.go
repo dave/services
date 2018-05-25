@@ -1,4 +1,4 @@
-package localresolverfetcher
+package copier
 
 import (
 	"io"
