@@ -12,8 +12,10 @@ import (
 )
 
 func New(dir string, sites map[string]string) *Fileserver {
-	for host, bucket := range sites {
-		go http.ListenAndServe(host, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, bucket)))))
+	if sites != nil {
+		for host, bucket := range sites {
+			go http.ListenAndServe(host, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, bucket)))))
+		}
 	}
 	return &Fileserver{
 		dir: dir,

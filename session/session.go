@@ -179,6 +179,9 @@ func (s *Session) createPackage(fs billy.Filesystem, dir string, files map[strin
 }
 
 func (s *Session) isValidFile(name string) bool {
+	if len(s.configValidExtensions) == 0 {
+		panic("configValidExtensions not specified")
+	}
 	for _, ext := range s.configValidExtensions {
 		if strings.HasSuffix(name, ext) {
 			return true
