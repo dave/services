@@ -323,7 +323,7 @@ func cleanImport(path string) string {
 }
 
 func (g *Getter) isDir(fpath string) bool {
-	fs := g.Filesystem(fpath)
+	fs := g.session.Filesystem(fpath)
 	fi, err := fs.Stat(fpath)
 	result := err == nil && fi.IsDir()
 	return result
@@ -404,7 +404,7 @@ func (g *Getter) VendoredImportPath(parent *Package, path string) (found string)
 // Otherwise it is not possible to vendor just a/b/c and still import the
 // non-vendored a/b. See golang.org/issue/13832.
 func (g *Getter) hasGoFiles(dir string) bool {
-	fs := g.Filesystem(dir)
+	fs := g.session.Filesystem(dir)
 	fis, _ := fs.ReadDir(dir)
 	for _, fi := range fis {
 		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {

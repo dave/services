@@ -12,7 +12,7 @@ import (
 )
 
 type Getter struct {
-	*session.Session
+	session           *session.Session
 	gitreq            *cache.Request
 	log               io.Writer
 	packageCache      map[string]*Package
@@ -29,7 +29,7 @@ type Getter struct {
 func New(session *session.Session, log io.Writer, cache *cache.Request) *Getter {
 	g := &Getter{}
 	g.gitreq = cache
-	g.Session = session
+	g.session = session
 	g.log = log
 	g.packageCache = make(map[string]*Package)
 	g.foldPath = make(map[string]string)
@@ -37,7 +37,7 @@ func New(session *session.Session, log io.Writer, cache *cache.Request) *Getter 
 	g.downloadRootCache = make(map[string]*repoRoot) // key is the root dir of the repo
 	g.repoPackages = make(map[string]*repoRoot)      // key is the path of the package. NOTE: not all packages are included, but the ones we're interested in should be.
 	g.fetchCache = make(map[string]fetchResult)
-	g.buildContext = g.BuildContext(false, "")
+	g.buildContext = g.session.BuildContext(false, "")
 	return g
 }
 

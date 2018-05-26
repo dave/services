@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dave/services"
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
 )
 
-func New(tags []string, root billy.Filesystem, configValidExtensions []string) *Session {
+func New(tags []string, root billy.Filesystem, fileserver services.Fileserver, configValidExtensions []string) *Session {
 	s := &Session{}
 	s.tags = append([]string{"js", "netgo", "purego", "jsgo"}, tags...)
 	s.pathfs = memfs.New()
@@ -20,6 +21,7 @@ func New(tags []string, root billy.Filesystem, configValidExtensions []string) *
 	s.source = map[string]map[string]string{}
 	s.sourcefs = memfs.New()
 	s.configValidExtensions = configValidExtensions
+	s.Fileserver = fileserver
 	return s
 }
 
@@ -39,7 +41,11 @@ type Session struct {
 	// Map of uploaded source files: package path => filename => contents
 	source map[string]map[string]string
 
+	// Valid file extensions
 	configValidExtensions []string
+
+	// Fileserver for storing and serving generated artifacts
+	Fileserver services.Fileserver
 }
 
 func (s *Session) SetSource(source map[string]map[string]string) error {

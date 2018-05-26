@@ -45,6 +45,8 @@ func (c *Cache) NewRequest(save bool) *Request {
 	r.cache = c
 	r.calls = new(CallGroup)
 	r.hints = map[string][]string{}
+	// If we're initialising from custom source files (e.g. in the jsgo playground) the results of the
+	// hints shouldn't be saved to the database.
 	r.save = save
 	return r
 }

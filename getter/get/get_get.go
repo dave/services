@@ -168,7 +168,7 @@ func (g *Getter) downloadPackage(ctx context.Context, p *Package, update bool, i
 		if filepath.Clean(list[0]) == filepath.Clean(g.buildContext.GOROOT) {
 			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
-		if _, err := g.GoPath().Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
+		if _, err := g.session.GoPath().Stat(filepath.Join(list[0], "src/cmd/go/alldocs.go")); err == nil {
 			return fmt.Errorf("cannot download, %s is a GOROOT, not a GOPATH. For more details see: 'go help gopath'", list[0])
 		}
 		p.Internal.Build.Root = list[0]
@@ -191,7 +191,7 @@ func (g *Getter) downloadPackage(ctx context.Context, p *Package, update bool, i
 	g.downloadRootCache[root.dir] = root
 
 	if !root.exists {
-		fs := g.GoPath()
+		fs := g.session.GoPath()
 
 		// Root does not exist. Prepare to checkout new copy.
 		// Some version control tools require the target directory not to exist.
