@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	"github.com/dave/services"
+	"github.com/gopherjs/gopherjs/compiler"
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
 )
 
-func New(tags []string, root billy.Filesystem, fileserver services.Fileserver, configValidExtensions []string) *Session {
+func New(tags []string, root billy.Filesystem, assetsArchives map[string]map[bool]*compiler.Archive, fileserver services.Fileserver, configValidExtensions []string) *Session {
 	s := &Session{}
 	s.tags = append([]string{"js", "netgo", "purego", "jsgo"}, tags...)
 	s.pathfs = memfs.New()
@@ -22,6 +23,7 @@ func New(tags []string, root billy.Filesystem, fileserver services.Fileserver, c
 	s.sourcefs = memfs.New()
 	s.configValidExtensions = configValidExtensions
 	s.Fileserver = fileserver
+	s.AssetsArchives = assetsArchives
 	return s
 }
 
@@ -46,6 +48,10 @@ type Session struct {
 
 	// Fileserver for storing and serving generated artifacts
 	Fileserver services.Fileserver
+
+	// AssetsArchives are the pre-compiled standard library archives created in the generation process...
+	// the format is map[path]map[minified]*compiler.Archive
+	AssetsArchives map[string]map[bool]*compiler.Archive
 }
 
 func (s *Session) SetSource(source map[string]map[string]string) error {
