@@ -1,3 +1,5 @@
+// +build !js
+
 package services
 
 import (
@@ -5,7 +7,6 @@ import (
 	"io"
 
 	"cloud.google.com/go/datastore"
-
 	billy "gopkg.in/src-d/go-billy.v4"
 )
 

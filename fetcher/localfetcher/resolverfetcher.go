@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"strings"
+
 	"github.com/dave/services/copier"
 	"golang.org/x/sync/singleflight"
 	"gopkg.in/src-d/go-billy.v4"
@@ -162,7 +164,17 @@ func (f *ResolverFetcher) Fetch(ctx context.Context, url string) (billy.Filesyst
 		return nil, err
 	}
 
-	if err := copier.Copy("/", "/", wt.Filesystem, fs); err != nil {
+	filter := func(name string, dir bool) bool {
+		if dir && strings.HasSuffix(name, "/.git") {
+			return false
+		}
+		if !dir && strings.HasSuffix(name, "/.notifier") {
+			return false
+		}
+		return true
+	}
+
+	if err := copier.Filter("/", "/", wt.Filesystem, fs, filter); err != nil {
 		return nil, err
 	}
 
