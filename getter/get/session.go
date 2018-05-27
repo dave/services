@@ -3,9 +3,11 @@ package get
 import (
 	"context"
 	"go/build"
-	"io"
 	"sync"
 
+	"io"
+
+	"github.com/dave/services"
 	"github.com/dave/services/getter/cache"
 	"github.com/dave/services/session"
 	"golang.org/x/sync/singleflight"
@@ -15,6 +17,7 @@ type Getter struct {
 	session           *session.Session
 	gitreq            *cache.Request
 	log               io.Writer
+	send              func(services.Message)
 	packageCache      map[string]*Package
 	buildContext      *build.Context
 	foldPath          map[string]string
@@ -26,11 +29,11 @@ type Getter struct {
 	fetchCache        map[string]fetchResult // key is metaImportsForPrefix's importPrefix
 }
 
-func New(session *session.Session, log io.Writer, cache *cache.Request) *Getter {
+func New(session *session.Session, send func(services.Message), cache *cache.Request) *Getter {
 	g := &Getter{}
 	g.gitreq = cache
 	g.session = session
-	g.log = log
+	g.send = send
 	g.packageCache = make(map[string]*Package)
 	g.foldPath = make(map[string]string)
 	g.downloadCache = make(map[string]bool)

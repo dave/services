@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dave/services"
+	"github.com/dave/services/builder/buildermsg"
 	"github.com/dave/services/session"
 	"github.com/gopherjs/gopherjs/compiler"
 	"github.com/gopherjs/gopherjs/compiler/natives"
@@ -376,6 +378,7 @@ type Options struct {
 	Temporary      billy.Filesystem // Filesystem for temporary Archive storage (optional)
 	Unvendor       bool             // Render JS with unvendored paths
 	Initializer    bool             // Render JS with deferred initialization
+	Send           func(services.Message)
 	Log            io.Writer
 	Verbose        bool
 	Quiet          bool
@@ -647,8 +650,8 @@ func (b *Builder) BuildPackage(ctx context.Context, pkg *PackageData) (*compiler
 				show = false
 			}
 		}
-		if show {
-			fmt.Fprintln(b.options.Log, importPath)
+		if show && b.options.Send != nil {
+			b.options.Send(buildermsg.Building{Message: importPath})
 		}
 	}
 

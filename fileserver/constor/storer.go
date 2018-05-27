@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/dave/services"
+	"github.com/dave/services/fileserver/constor/constormsg"
 )
 
 type Storer struct {
@@ -18,13 +19,15 @@ type Storer struct {
 	done       int32
 	total      int32
 	Err        error
+	send       func(services.Message)
 }
 
-func New(ctx context.Context, fileserver services.Fileserver, workers int) *Storer {
+func New(ctx context.Context, fileserver services.Fileserver, send func(services.Message), workers int) *Storer {
 	s := &Storer{
 		fileserver: fileserver,
 		queue:      make(chan Item, 1000),
 		wait:       sync.WaitGroup{},
+		send:       send,
 	}
 	for i := 0; i < workers; i++ {
 		go s.Worker(ctx)
@@ -65,18 +68,21 @@ func (s *Storer) Worker(ctx context.Context) {
 					atomic.AddInt32(&s.unchanged, 1)
 				}
 			}
-			if item.Changed != nil {
-				item.Changed(true)
+			if item.Send {
+				s.sendMessage()
 			}
 		}()
 	}
 }
 
-func (s *Storer) Stats() (total, done, unchanged int) {
-	total = int(atomic.LoadInt32(&s.total))
-	done = int(atomic.LoadInt32(&s.done))
-	unchanged = int(atomic.LoadInt32(&s.unchanged))
-	return total, done, unchanged
+func (s *Storer) sendMessage() {
+	if s.send == nil {
+		return
+	}
+	total := int(atomic.LoadInt32(&s.total))
+	done := int(atomic.LoadInt32(&s.done))
+	unchanged := int(atomic.LoadInt32(&s.unchanged))
+	s.send(constormsg.Storing{Finished: done, Unchanged: unchanged, Remain: total - done - unchanged})
 }
 
 func (s *Storer) Add(item Item) {
@@ -85,8 +91,8 @@ func (s *Storer) Add(item Item) {
 	if item.Count {
 		atomic.AddInt32(&s.total, 1)
 	}
-	if item.Changed != nil {
-		item.Changed(false)
+	if item.Send {
+		s.sendMessage()
 	}
 
 	s.queue <- item
@@ -110,5 +116,5 @@ type Item struct {
 	Immutable bool
 	Count     bool
 	Wait      *sync.WaitGroup
-	Changed   func(done bool)
+	Send      bool
 }

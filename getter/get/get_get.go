@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"context"
+
+	"github.com/dave/services/getter/gettermsg"
 )
 
 func (g *Getter) download(ctx context.Context, path string, parent *Package, stk *ImportStack, update bool, insecure, single bool) error {
@@ -205,8 +207,8 @@ func (g *Getter) downloadPackage(ctx context.Context, p *Package, update bool, i
 		if err = fs.MkdirAll(parent, 0777); err != nil {
 			return err
 		}
-		if g.log != nil {
-			fmt.Fprintln(g.log, root.root)
+		if g.send != nil {
+			g.send(gettermsg.Downloading{Message: root.root})
 		}
 
 		if err = root.create(ctx, fs); err != nil {
@@ -216,8 +218,8 @@ func (g *Getter) downloadPackage(ctx context.Context, p *Package, update bool, i
 		// Root does exist; download incremental updates.
 		panic("root exists")
 
-		if g.log != nil {
-			fmt.Fprintln(g.log, root.root)
+		if g.send != nil {
+			g.send(gettermsg.Downloading{Message: root.root})
 		}
 
 		if err = root.download(ctx); err != nil {
