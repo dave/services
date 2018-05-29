@@ -27,6 +27,6 @@ type Config struct {
 	ConcurrentStorageUploads int
 	IndexBucket              string
 	PkgBucket                string
-	Protocol                 string
+	PkgProtocol              string
 	PkgHost                  string
 }

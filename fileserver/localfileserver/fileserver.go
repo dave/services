@@ -9,13 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/dave/jsgo/config"
 )
 
-func New(dir string, sites map[string]string) *Fileserver {
-	if sites != nil {
-		for host, bucket := range sites {
-			go http.ListenAndServe(host, pathEscape(http.FileServer(http.Dir(filepath.Join(dir, bucket)))))
-		}
+func New(dir string, sites []config.Site, host, bucket map[config.Site]string) *Fileserver {
+	for _, site := range sites {
+		go http.ListenAndServe(host[site], pathEscape(http.FileServer(http.Dir(filepath.Join(dir, bucket[site])))))
 	}
 	return &Fileserver{
 		dir: dir,

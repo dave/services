@@ -25,23 +25,24 @@ import (
 
 const FNAME = "repo.bin"
 
-func New(cache, fileserver services.Fileserver, configGitSaveTimeout, configGitCloneTimeout time.Duration, configGitMaxObjects int, configGitBucket string) *Fetcher {
+func New(cache, fileserver services.Fileserver, config Config) *Fetcher {
 	return &Fetcher{
-		cache:                 cache,
-		fileserver:            fileserver,
-		configGitSaveTimeout:  configGitSaveTimeout,
-		configGitCloneTimeout: configGitCloneTimeout,
-		configGitMaxObjects:   configGitMaxObjects,
-		configGitBucket:       configGitBucket,
+		cache:      cache,
+		fileserver: fileserver,
+		config:     config,
 	}
 }
 
 type Fetcher struct {
-	cache, fileserver     services.Fileserver
-	configGitSaveTimeout  time.Duration
-	configGitCloneTimeout time.Duration
-	configGitMaxObjects   int
-	configGitBucket       string
+	cache, fileserver services.Fileserver
+	config            Config
+}
+
+type Config struct {
+	GitSaveTimeout  time.Duration
+	GitCloneTimeout time.Duration
+	GitMaxObjects   int
+	GitBucket       string
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, url string) (billy.Filesystem, error) {
@@ -88,7 +89,7 @@ func (f *Fetcher) Fetch(ctx context.Context, url string) (billy.Filesystem, erro
 		return nil, err
 	}
 	// we don't want the context to be cancelled half way through saving, so let's create a new one:
-	gitctx, _ := context.WithTimeout(context.Background(), f.configGitSaveTimeout)
+	gitctx, _ := context.WithTimeout(context.Background(), f.config.GitSaveTimeout)
 	if changed {
 		go f.save(gitctx, f.fileserver, url, persisted)
 	}
@@ -159,10 +160,10 @@ func (f *Fetcher) doFetch(ctx context.Context, url string, store *filesystem.Sto
 		// repo has changed - this will mean it's saved after the operation
 		changed = true
 
-		ctx, cancel := context.WithTimeout(ctx, f.configGitCloneTimeout)
+		ctx, cancel := context.WithTimeout(ctx, f.config.GitCloneTimeout)
 		defer cancel()
 
-		pw, errchan := newProgressWatcher(f.configGitMaxObjects)
+		pw, errchan := newProgressWatcher(f.config.GitMaxObjects)
 		defer pw.stop()
 		var errFromWatcher error
 		go func() {
@@ -197,10 +198,10 @@ func (f *Fetcher) doFetch(ctx context.Context, url string, store *filesystem.Sto
 
 func (f *Fetcher) doClone(ctx context.Context, url string, store *filesystem.Storage, worktree billy.Filesystem) (changed bool, err error) {
 
-	ctx, cancel := context.WithTimeout(ctx, f.configGitCloneTimeout)
+	ctx, cancel := context.WithTimeout(ctx, f.config.GitCloneTimeout)
 	defer cancel()
 
-	pw, errchan := newProgressWatcher(f.configGitMaxObjects)
+	pw, errchan := newProgressWatcher(f.config.GitMaxObjects)
 	defer pw.stop()
 	var errFromWatcher error
 	go func() {
@@ -295,7 +296,7 @@ func (f *Fetcher) save(ctx context.Context, fileserver services.Fileserver, repo
 		return err
 	}
 	defer persisted.Close()
-	if _, err := fileserver.Write(ctx, f.configGitBucket, url.PathEscape(repoUrl), persisted, true, "application/octet-stream", "no-cache"); err != nil {
+	if _, err := fileserver.Write(ctx, f.config.GitBucket, url.PathEscape(repoUrl), persisted, true, "application/octet-stream", "no-cache"); err != nil {
 		return err
 	}
 	return nil
@@ -308,5 +309,5 @@ func (f *Fetcher) load(ctx context.Context, fileserver services.Fileserver, repo
 		return false, err
 	}
 	defer persisted.Close()
-	return fileserver.Read(ctx, f.configGitBucket, url.PathEscape(repoUrl), persisted)
+	return fileserver.Read(ctx, f.config.GitBucket, url.PathEscape(repoUrl), persisted)
 }

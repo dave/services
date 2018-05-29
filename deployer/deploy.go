@@ -231,7 +231,7 @@ func (d *Deployer) genIndex(storer *constor.Storer, tpl *template.Template, path
 	v := IndexVars{
 		Path:   path,
 		Hash:   fmt.Sprintf("%x", loaderHash),
-		Script: fmt.Sprintf("%s://%s/%s.%x.js", d.config.Protocol, d.config.PkgHost, path, loaderHash),
+		Script: fmt.Sprintf("%s://%s/%s.%x.js", d.config.PkgProtocol, d.config.PkgHost, path, loaderHash),
 	}
 
 	buf := &bytes.Buffer{}
@@ -339,10 +339,10 @@ func (d *Deployer) genMain(ctx context.Context, storer *constor.Storer, output *
 	}
 
 	m := MainVars{
-		Protocol: d.config.Protocol,
-		PkgHost:  d.config.PkgHost,
-		Path:     output.Path,
-		Json:     string(pkgJson),
+		PkgProtocol: d.config.PkgProtocol,
+		PkgHost:     d.config.PkgHost,
+		Path:        output.Path,
+		Json:        string(pkgJson),
 	}
 
 	buf := &bytes.Buffer{}
@@ -384,10 +384,10 @@ func (d *Deployer) genMain(ctx context.Context, storer *constor.Storer, output *
 }
 
 type MainVars struct {
-	Path     string
-	Json     string
-	PkgHost  string
-	Protocol string
+	Path        string
+	Json        string
+	PkgHost     string
+	PkgProtocol string
 }
 
 type PkgJson struct {
@@ -398,7 +398,7 @@ type PkgJson struct {
 // minify with https://skalman.github.io/UglifyJS-online/
 
 var mainTemplateMinified = template.Must(template.New("main").Parse(
-	`"use strict";var $mainPkg,$load={};!function(){for(var n=0,t=0,e={{ .Json }},o=(document.getElementById("log"),function(){n++,window.jsgoProgress&&window.jsgoProgress(n,t),n==t&&function(){for(var n=0;n<e.length;n++)$load[e[n].path]();$mainPkg=$packages["{{ .Path }}"],$synthesizeMethods(),$packages.runtime.$init(),$go($mainPkg.$init,[]),$flushConsole()}()}),a=function(n){t++;var e=document.createElement("script");e.src=n,e.onload=o,e.onreadystatechange=o,document.head.appendChild(e)},s=0;s<e.length;s++)a("{{ .Protocol }}://{{ .PkgHost }}/"+e[s].path+"."+e[s].hash+".js")}();`,
+	`"use strict";var $mainPkg,$load={};!function(){for(var n=0,t=0,e={{ .Json }},o=(document.getElementById("log"),function(){n++,window.jsgoProgress&&window.jsgoProgress(n,t),n==t&&function(){for(var n=0;n<e.length;n++)$load[e[n].path]();$mainPkg=$packages["{{ .Path }}"],$synthesizeMethods(),$packages.runtime.$init(),$go($mainPkg.$init,[]),$flushConsole()}()}),a=function(n){t++;var e=document.createElement("script");e.src=n,e.onload=o,e.onreadystatechange=o,document.head.appendChild(e)},s=0;s<e.length;s++)a("{{ .PkgProtocol }}://{{ .PkgHost }}/"+e[s].path+"."+e[s].hash+".js")}();`,
 ))
 var mainTemplate = template.Must(template.New("main").Parse(`"use strict";
 var $mainPkg;
@@ -433,6 +433,6 @@ var $load = {};
 		document.head.appendChild(tag);
 	}
 	for (var i = 0; i < info.length; i++) {
-		get("{{ .Protocol }}://{{ .PkgHost }}/" + info[i].path + "." + info[i].hash + ".js");
+		get("{{ .PkgProtocol }}://{{ .PkgHost }}/" + info[i].path + "." + info[i].hash + ".js");
 	}
 })();`))
