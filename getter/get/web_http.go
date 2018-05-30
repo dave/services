@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"

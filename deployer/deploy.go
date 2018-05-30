@@ -16,8 +16,8 @@ import (
 
 	"github.com/dave/services/builder"
 	"github.com/dave/services/builder/buildermsg"
-	"github.com/dave/services/fileserver/constor"
-	"github.com/dave/services/fileserver/constor/constormsg"
+	"github.com/dave/services/constor"
+	"github.com/dave/services/constor/constormsg"
 	"gopkg.in/src-d/go-billy.v4/memfs"
 )
 

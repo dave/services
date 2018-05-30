@@ -3,9 +3,8 @@ package get
 import (
 	"context"
 	"go/build"
-	"sync"
-
 	"io"
+	"sync"
 
 	"github.com/dave/services"
 	"github.com/dave/services/getter/cache"

@@ -1,6 +1,7 @@
 package get
 
 import (
+	"context"
 	"fmt"
 	"go/build"
 	pathpkg "path"
@@ -9,8 +10,6 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"context"
 )
 
 // A Package describes a single package found in a directory.

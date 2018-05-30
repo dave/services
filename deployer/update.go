@@ -8,8 +8,8 @@ import (
 
 	"github.com/dave/services/builder"
 	"github.com/dave/services/builder/buildermsg"
+	"github.com/dave/services/constor"
 	"github.com/dave/services/deployer/deployermsg"
-	"github.com/dave/services/fileserver/constor"
 	"github.com/gopherjs/gopherjs/compiler"
 )
 

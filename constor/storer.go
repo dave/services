@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/dave/services"
-	"github.com/dave/services/fileserver/constor/constormsg"
+	"github.com/dave/services/constor/constormsg"
 )
 
 type Storer struct {

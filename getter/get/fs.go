@@ -1,11 +1,9 @@
 package get
 
 import (
-	"sync/atomic"
-
 	"errors"
-
 	"os"
+	"sync/atomic"
 
 	"gopkg.in/src-d/go-billy.v4"
 )

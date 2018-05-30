@@ -2,7 +2,6 @@ package get
 
 import (
 	"context"
-
 	"time"
 
 	"github.com/dave/services/copier"

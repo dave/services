@@ -1,11 +1,9 @@
 package get
 
 import (
-	"path/filepath"
-
-	"fmt"
-
 	"context"
+	"fmt"
+	"path/filepath"
 
 	"github.com/dave/services/getter/gettermsg"
 )

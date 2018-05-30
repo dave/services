@@ -12,4 +12,3 @@ At [549cb18a9131221755694c0ccc610ae9a406129d](https://github.com/golang/go/commi
 (Go 1.10). Getter adds modifications in order to pull using the [go-git](https://github.com/src-d/go-git) 
 Git client into a virtual filesystem. Additionally, various features that are irrelevant to GopherJS 
 compiles have been dropped (e.g. cgo, command line flags etc.)
-g

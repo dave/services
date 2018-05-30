@@ -6,9 +6,8 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
-	"sync"
-
 	"strings"
+	"sync"
 
 	"github.com/dave/services/copier"
 	"golang.org/x/sync/singleflight"

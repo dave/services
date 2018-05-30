@@ -1,13 +1,11 @@
 package copier
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-
 	"time"
-
-	"fmt"
 
 	billy "gopkg.in/src-d/go-billy.v4"
 )

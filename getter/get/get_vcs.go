@@ -1,17 +1,14 @@
 package get
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"strings"
-
-	"regexp"
-
 	"net/url"
-
-	"context"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/dave/services/getter/cache"
 	"gopkg.in/src-d/go-billy.v4"
