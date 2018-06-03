@@ -3,7 +3,9 @@ package get
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/dave/services/getter/gettermsg"
 )
@@ -30,11 +32,6 @@ func (g *Getter) download(ctx context.Context, path string, parent *Package, stk
 	// see: golang.org/issue/9767
 	path = p.ImportPath
 
-	// There's nothing to do if this is a package in the standard library.
-	if p.Standard {
-		return nil
-	}
-
 	// Only process each package once.
 	// (Unless we're fetching test dependencies for this package,
 	// in which case we want to process it again.)
@@ -47,7 +44,23 @@ func (g *Getter) download(ctx context.Context, path string, parent *Package, stk
 		g.downloadCache[path] = true
 	}
 
-	pkgs := []*Package{p}
+	// There's nothing to do if this is a package in the standard library.
+	if p.Standard {
+
+		// ... however we should do the callback if needed.
+		if err := g.doCallback(p); err != nil {
+			return err
+		}
+
+		if g.Callback != nil {
+			// if we specified a callback, we want to process the imports of standard library packages
+			if err := g.processImports(ctx, p, stk, update, insecure); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || update {
@@ -65,16 +78,13 @@ func (g *Getter) download(ctx context.Context, path string, parent *Package, stk
 		// doing any new loads.
 		g.ClearPackageCachePartial([]string{path})
 
-		pkgs = pkgs[:0]
-
 		// Note: load calls loadPackage or loadImport,
 		// which push arg onto stk already.
 		// Do not push here too, or else stk will say arg imports arg.
-		p := load1(path, false)
+		p = load1(path, false)
 		if p.Error != nil {
 			return p.Error
 		}
-		pkgs = append(pkgs, p)
 
 	} else {
 		// if we're not downloading the repo, then work out what the repo is and store this in repoPackages
@@ -85,49 +95,93 @@ func (g *Getter) download(ctx context.Context, path string, parent *Package, stk
 		}
 	}
 
+	// we should have all the files now, so call the callback if needed
+	if err := g.doCallback(p); err != nil {
+		return err
+	}
+
 	// single mode - don't process dependencies
 	if single {
 		return nil
 	}
 
-	// Process package, which might now be multiple packages
-	// due to wildcard expansion.
-	for _, p := range pkgs {
-		// Process dependencies, now that we know what they are.
-		imports := p.Imports
-		for i, path := range imports {
-			if path == "C" {
-				continue
-			}
-			// Fail fast on import naming full vendor path.
-			// Otherwise expand path as needed for test imports.
-			// Note that p.Imports can have additional entries beyond p.Internal.Build.Imports.
-			orig := path
-			if i < len(p.Internal.Build.Imports) {
-				orig = p.Internal.Build.Imports[i]
-			}
-			if j, ok := FindVendor(orig); ok {
-				stk.Push(path)
-				err := &PackageError{
-					ImportStack: stk.Copy(),
-					Err:         "must be imported as " + path[j+len("vendor/"):],
-				}
-				stk.Pop()
-				return err
-			}
-			// If this is a test import, apply vendor lookup now.
-			// We cannot pass useVendor to download, because
-			// download does caching based on the value of path,
-			// so it must be the fully qualified path already.
-			if i >= len(p.Imports) {
-				path = g.VendoredImportPath(p, path)
-			}
-			if err := g.download(ctx, path, p, stk, update, insecure, false); err != nil {
-				return err
-			}
-		}
+	if err := g.processImports(ctx, p, stk, update, insecure); err != nil {
+		return err
 	}
 
+	return nil
+}
+
+func (g *Getter) processImports(ctx context.Context, p *Package, stk *ImportStack, update, insecure bool) error {
+	// Process dependencies, now that we know what they are.
+	imports := p.Imports
+	for i, path := range imports {
+		if path == "C" {
+			continue
+		}
+		// Fail fast on import naming full vendor path.
+		// Otherwise expand path as needed for test imports.
+		// Note that p.Imports can have additional entries beyond p.Internal.Build.Imports.
+		orig := path
+		if i < len(p.Internal.Build.Imports) {
+			orig = p.Internal.Build.Imports[i]
+		}
+		if j, ok := FindVendor(orig); ok {
+			stk.Push(path)
+			err := &PackageError{
+				ImportStack: stk.Copy(),
+				Err:         "must be imported as " + path[j+len("vendor/"):],
+			}
+			stk.Pop()
+			return err
+		}
+		// If this is a test import, apply vendor lookup now.
+		// We cannot pass useVendor to download, because
+		// download does caching based on the value of path,
+		// so it must be the fully qualified path already.
+		if i >= len(p.Imports) {
+			path = g.VendoredImportPath(p, path)
+		}
+		if err := g.download(ctx, path, p, stk, update, insecure, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *Getter) doCallback(p *Package) error {
+	if g.Callback == nil {
+		return nil
+	}
+	files := map[string]string{}
+	fis, err := g.buildContext.ReadDir(p.Dir)
+	if err != nil {
+		return err
+	}
+	for _, fi := range fis {
+		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".go") {
+			continue
+		}
+		err := func() error {
+			f, err := g.buildContext.OpenFile(filepath.Join(p.Dir, fi.Name()))
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			b, err := ioutil.ReadAll(f)
+			if err != nil {
+				return err
+			}
+			files[fi.Name()] = string(b)
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+	if err := g.Callback(p.ImportPath, files, p.Standard); err != nil {
+		return err
+	}
 	return nil
 }
 

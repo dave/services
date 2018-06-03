@@ -99,6 +99,7 @@ func (s *Session) BuildContext(builder bool, suffix string) *build.Context {
 		// If HasSubdir is nil, Import uses an implementation built on
 		// filepath.EvalSymlinks.
 		HasSubdir: func(root, dir string) (rel string, ok bool) {
+			// copied from default implementation to prevent use of filepath.EvalSymlinks
 			const sep = string(filepath.Separator)
 			root = filepath.Clean(root)
 			if !strings.HasSuffix(root, sep) {

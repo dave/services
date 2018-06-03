@@ -26,6 +26,7 @@ type Getter struct {
 	fetchGroup        singleflight.Group
 	fetchCacheMu      sync.Mutex
 	fetchCache        map[string]fetchResult // key is metaImportsForPrefix's importPrefix
+	Callback          func(path string, files map[string]string, standard bool) error
 }
 
 func New(session *session.Session, send func(services.Message), cache *cache.Request) *Getter {

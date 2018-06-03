@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sync"
+	"sync/atomic"
 
 	"github.com/dave/services/builder"
 	"github.com/dave/services/builder/buildermsg"
@@ -22,7 +22,7 @@ func (d *Deployer) Update(ctx context.Context, source map[string]map[string]stri
 
 	b := builder.New(d.session, d.defaultOptions(min))
 
-	index := deployermsg.Index{}
+	index := deployermsg.ArchiveIndex{}
 	done := map[string]bool{}
 
 	b.Callback = func(archive *compiler.Archive) error {
@@ -62,7 +62,7 @@ func (d *Deployer) Update(ctx context.Context, source map[string]map[string]stri
 			unchanged = true
 		}
 
-		index[archive.ImportPath] = deployermsg.IndexItem{
+		index[archive.ImportPath] = deployermsg.ArchiveIndexItem{
 			Hash:      hash,
 			Unchanged: unchanged,
 		}
@@ -73,9 +73,23 @@ func (d *Deployer) Update(ctx context.Context, source map[string]map[string]stri
 			return nil
 		}
 
-		if !standard {
-			var wait sync.WaitGroup
-			wait.Add(2)
+		if standard {
+			d.send(deployermsg.Archive{
+				Path:     archive.ImportPath,
+				Hash:     hash,
+				Standard: true,
+			})
+		} else {
+			var count uint32
+			done := func() {
+				if atomic.AddUint32(&count, 1) == 2 {
+					d.send(deployermsg.Archive{
+						Path:     archive.ImportPath,
+						Hash:     hash,
+						Standard: false,
+					})
+				}
+			}
 			storer.Add(constor.Item{
 				Message:   archive.Name,
 				Name:      fmt.Sprintf("%s.%s.js", archive.ImportPath, hash), // Note: hash is a string
@@ -84,8 +98,8 @@ func (d *Deployer) Update(ctx context.Context, source map[string]map[string]stri
 				Mime:      constor.MimeJs,
 				Count:     true,
 				Immutable: true,
-				Wait:      &wait,
 				Send:      true,
+				Done:      done,
 			})
 			buf := &bytes.Buffer{}
 			if err := compiler.WriteArchive(StripArchive(archive), buf); err != nil {
@@ -99,17 +113,10 @@ func (d *Deployer) Update(ctx context.Context, source map[string]map[string]stri
 				Mime:      constor.MimeBin,
 				Count:     true,
 				Immutable: true,
-				Wait:      &wait,
 				Send:      true,
+				Done:      done,
 			})
-			wait.Wait()
 		}
-
-		d.send(deployermsg.Archive{
-			Path:     archive.ImportPath,
-			Hash:     hash,
-			Standard: standard,
-		})
 		return nil
 	}
 
@@ -131,6 +138,10 @@ func (d *Deployer) Update(ctx context.Context, source map[string]map[string]stri
 		if _, _, err := b.BuildImportPath(ctx, path); err != nil {
 			return err
 		}
+	}
+
+	if err := storer.Wait(); err != nil {
+		return err
 	}
 
 	d.send(index)

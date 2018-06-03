@@ -5,16 +5,16 @@ import (
 )
 
 func RegisterTypes() {
-	gob.Register(Index{})
+	gob.Register(ArchiveIndex{})
 	gob.Register(Archive{})
 }
 
-// Index is an ordered list of dependencies.
-type Index map[string]IndexItem
+// ArchiveIndex is a list of dependencies.
+type ArchiveIndex map[string]ArchiveIndexItem
 
-// IndexItem is an item in Index. Unchanged is true if the client already has cached as specified by
-// Cache in the Update message. Unchanged dependencies are not sent as Archive messages.
-type IndexItem struct {
+// ArchiveIndexItem is an item in ArchiveIndex. Unchanged is true if the client already has cached as
+// specified by Cache in the Update message. Unchanged dependencies are not sent as Archive messages.
+type ArchiveIndexItem struct {
 	Hash      string // Hash of the js file
 	Unchanged bool   // Unchanged is true if the package already exists in the client cache.
 }

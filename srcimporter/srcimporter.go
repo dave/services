@@ -23,6 +23,8 @@ type Importer struct {
 	fset     *token.FileSet
 	sizes    types.Sizes
 	packages map[string]*types.Package
+	Filter   func(path string) bool
+	Callback func(path string)
 }
 
 // NewImporter returns a new Importer for the given context, file set, and map
@@ -89,6 +91,10 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		return pkg, nil
 	}
 
+	if p.Filter != nil && !p.Filter(path) {
+		return nil, nil
+	}
+
 	p.packages[bp.ImportPath] = &importing
 	defer func() {
 		// clean up in case of error
@@ -137,6 +143,10 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	if firstHardErr != nil {
 		// this can only happen if we have a bug in go/types
 		panic("package is not safe yet no error was returned")
+	}
+
+	if p.Callback != nil {
+		p.Callback(path)
 	}
 
 	p.packages[bp.ImportPath] = pkg
@@ -189,7 +199,10 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 func (p *Importer) absPath(path string) (string, error) {
 	// TODO(gri) This should be using p.ctxt.AbsPath which doesn't
 	// exist but probably should. See also issue #14282.
-	return filepath.Abs(path)
+	//return filepath.Abs(path)
+
+	// TODO: Is this OK?
+	return path, nil
 }
 
 func (p *Importer) isAbsPath(path string) bool {

@@ -93,10 +93,10 @@ func (d *Deployer) Deploy(ctx context.Context, path string, index IndexType, min
 
 	d.send(buildermsg.Building{Done: true})
 
-	storer.Wait()
-	if storer.Err != nil {
-		return nil, storer.Err
+	if err := storer.Wait(); err != nil {
+		return nil, err
 	}
+
 	d.send(constormsg.Storing{Done: true})
 
 	out := map[bool]*DeployOutput{}
