@@ -160,7 +160,7 @@ func StripArchive(a *compiler.Archive) *compiler.Archive {
 		Minified:   a.Minified,
 	}
 	for _, d := range a.Declarations {
-		// All that's needed in Declarations is FullName (https://github.com/gopherjs/gopherjs/blob/423bf76ba1888a53d4fe3c1a82991cdb019a52ad/compiler/package.go#L187-L191)
+		// All that's needed in Declarations is FullName and Blocking (https://github.com/gopherjs/gopherjs/blob/423bf76ba1888a53d4fe3c1a82991cdb019a52ad/compiler/package.go#L187-L191)
 		out.Declarations = append(out.Declarations, &compiler.Decl{FullName: d.FullName, Blocking: d.Blocking})
 	}
 	return out
