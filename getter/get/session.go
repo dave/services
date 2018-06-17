@@ -6,6 +6,8 @@ import (
 	"io"
 	"sync"
 
+	"fmt"
+
 	"github.com/dave/services"
 	"github.com/dave/services/getter/cache"
 	"github.com/dave/services/session"
@@ -57,9 +59,19 @@ func (g *Getter) Get(ctx context.Context, path string, update bool, insecure, si
 	hints := map[string][]string{}
 	var processPath func(path string) []string
 	processPath = func(path string) []string {
+
+		if path == "C" {
+			// Special case for "C" pseudo-import
+			return nil
+		}
+
 		urls := map[string]bool{}
 
 		p := g.packageCache[path]
+
+		if p == nil {
+			panic(fmt.Sprintf("package %s not in cache", path))
+		}
 
 		if p.Standard {
 			return nil
