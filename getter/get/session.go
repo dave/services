@@ -31,10 +31,10 @@ type Getter struct {
 	Callback          func(path string, files map[string]string, standard bool) error
 }
 
-func New(session *session.Session, send func(services.Message), cache *cache.Request) *Getter {
+func New(sess *session.Session, send func(services.Message), cache *cache.Request) *Getter {
 	g := &Getter{}
 	g.gitreq = cache
-	g.session = session
+	g.session = sess
 	g.send = send
 	g.packageCache = make(map[string]*Package)
 	g.foldPath = make(map[string]string)
@@ -42,7 +42,7 @@ func New(session *session.Session, send func(services.Message), cache *cache.Req
 	g.downloadRootCache = make(map[string]*repoRoot) // key is the root dir of the repo
 	g.repoPackages = make(map[string]*repoRoot)      // key is the path of the package. NOTE: not all packages are included, but the ones we're interested in should be.
 	g.fetchCache = make(map[string]fetchResult)
-	g.buildContext = g.session.BuildContext(false, "")
+	g.buildContext = g.session.BuildContext(session.DefaultType, "")
 	return g
 }
 

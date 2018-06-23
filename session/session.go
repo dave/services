@@ -65,16 +65,29 @@ func (s *Session) SetSource(source map[string]map[string]string) error {
 	return nil
 }
 
-func (s *Session) BuildContext(builder bool, suffix string) *build.Context {
-	goarch := "amd64"
-	cgo := false
-	if builder {
+type BuildType int
+
+const (
+	DefaultType BuildType = iota
+	JsType
+)
+
+func (s *Session) BuildContext(buildType BuildType, suffix string) *build.Context {
+	var goarch, goos string
+	var cgo bool
+	switch buildType {
+	case DefaultType:
+		goarch = "amd64"
+		goos = "darwin"
+		cgo = false
+	case JsType:
 		goarch = "js"
+		goos = "darwin"
 		cgo = true
 	}
 	b := &build.Context{
 		GOARCH:        goarch,   // Target architecture
-		GOOS:          "darwin", // Target operating system
+		GOOS:          goos,     // Target operating system
 		GOROOT:        "goroot", // Go root
 		GOPATH:        "gopath", // Go path
 		InstallSuffix: suffix,   // Builder only: "min" or "".

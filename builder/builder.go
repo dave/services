@@ -55,7 +55,7 @@ func (e *ImportCError) Error() string {
 // If an error occurs, Import returns a non-nil error and a nil
 // *PackageData.
 func (b *Builder) Import(ctx context.Context, path string, mode build.ImportMode, installSuffix string) (*PackageData, error) {
-	bctx := b.session.BuildContext(true, installSuffix)
+	bctx := b.session.BuildContext(session.JsType, installSuffix)
 	return b.importWithSrcDir(ctx, *bctx, path, "", mode, installSuffix)
 }
 
@@ -169,7 +169,7 @@ func (b *Builder) ImportDir(ctx context.Context, dir string, mode build.ImportMo
 	var pkg *build.Package
 	var err error
 	if WithCancel(ctx, func() {
-		pkg, err = b.session.BuildContext(true, installSuffix).ImportDir(dir, mode)
+		pkg, err = b.session.BuildContext(session.JsType, installSuffix).ImportDir(dir, mode)
 	}) {
 		return nil, ctx.Err()
 	}
@@ -432,17 +432,17 @@ type Builder struct {
 	Callback func(*compiler.Archive) error
 }
 
-func New(session *session.Session, options *Options) *Builder {
+func New(sess *session.Session, options *Options) *Builder {
 	if options.Temporary == nil {
 		options.Temporary = memfs.New()
 	}
 	s := &Builder{
-		session:  session,
+		session:  sess,
 		options:  options,
 		Archives: make(map[string]*compiler.Archive),
 		Types:    make(map[string]*types.Package),
 	}
-	s.bctx = s.session.BuildContext(true, s.InstallSuffix())
+	s.bctx = s.session.BuildContext(session.JsType, s.InstallSuffix())
 	return s
 }
 

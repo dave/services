@@ -1,8 +1,6 @@
 package main
 
 import (
-	"path/filepath"
-
 	"os"
 
 	"io"
@@ -11,6 +9,7 @@ import (
 
 	"errors"
 
+	"github.com/dave/services/fsprinter"
 	"gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
@@ -140,7 +139,7 @@ func Get(url string) error {
 		}
 	}
 
-	printFs(worktree)
+	fsprinter.Print(worktree)
 
 	return nil
 }
@@ -199,28 +198,4 @@ func load(fs billy.Filesystem) (found bool, err error) {
 	}
 
 	return true, nil
-}
-
-func printFs(fs billy.Filesystem) {
-	err := printDir(fs, "/")
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func printDir(fs billy.Filesystem, dir string) error {
-	fis, err := fs.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	for _, fi := range fis {
-		fpath := filepath.Join(dir, fi.Name())
-		fmt.Println(fpath)
-		if fi.IsDir() {
-			if err := printDir(fs, fpath); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
