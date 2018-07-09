@@ -1,4 +1,4 @@
-package copier
+package fsutil
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 // Copy copies src to dest, doesn't matter if src is a directory or a file
-func Copy(src, dest string, srcFs, dstFs billy.Filesystem) error {
+func Copy(dstFs billy.Filesystem, dest string, srcFs billy.Filesystem, src string) error {
 	info, err := srcFs.Stat(src)
 	if err != nil {
 		return err
@@ -23,7 +23,7 @@ type filterFunc func(name string, dir bool) bool
 
 // Filter copies src to dest, doesn't matter if src is a directory or a file, and includes a filter
 // function to exclude files / dirs
-func Filter(src, dest string, srcFs, dstFs billy.Filesystem, filter filterFunc) error {
+func Filter(dstFs billy.Filesystem, dest string, srcFs billy.Filesystem, src string, filter filterFunc) error {
 	info, err := srcFs.Stat(src)
 	if err != nil {
 		return err

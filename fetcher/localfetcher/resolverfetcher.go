@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dave/services/copier"
+	"github.com/dave/services/fsutil"
 	"golang.org/x/sync/singleflight"
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
@@ -173,7 +173,7 @@ func (f *ResolverFetcher) Fetch(ctx context.Context, url string) (billy.Filesyst
 		return true
 	}
 
-	if err := copier.Filter("/", "/", wt.Filesystem, fs, filter); err != nil {
+	if err := fsutil.Filter(fs, "/", wt.Filesystem, "/", filter); err != nil {
 		return nil, err
 	}
 

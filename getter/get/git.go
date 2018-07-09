@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dave/services/copier"
+	"github.com/dave/services/fsutil"
 	"github.com/dave/services/getter/cache"
 	"gopkg.in/src-d/go-billy.v4"
 	git "gopkg.in/src-d/go-git.v4"
@@ -37,7 +37,7 @@ func (g *gitProvider) create(ctx context.Context, url, dir string, fs billy.File
 	if err != nil {
 		return err
 	}
-	if err := copier.Copy("/", dir, worktree, fs); err != nil {
+	if err := fsutil.Copy(fs, dir, worktree, "/"); err != nil {
 		return err
 	}
 	return nil

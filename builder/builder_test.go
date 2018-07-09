@@ -6,7 +6,7 @@ import (
 	"go/types"
 	"testing"
 
-	"github.com/dave/services/copier"
+	"github.com/dave/services/fsutil"
 
 	"io/ioutil"
 	"os"
@@ -33,24 +33,24 @@ func TestAll(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(goroot)
-	if err := copier.Copy(filepath.Join(build.Default.GOROOT, "src"), filepath.Join(goroot, "src"), osfs.New("/"), osfs.New("/")); err != nil {
+	if err := fsutil.Copy(osfs.New("/"), filepath.Join(goroot, "src"), osfs.New("/"), filepath.Join(build.Default.GOROOT, "src")); err != nil {
 		t.Fatal(err)
 	}
-	if err := copier.Copy(filepath.Join(build.Default.GOPATH, "src/github.com/gopherjs/gopherjs/js"), filepath.Join(goroot, "src/github.com/gopherjs/gopherjs/js"), osfs.New("/"), osfs.New("/")); err != nil {
+	if err := fsutil.Copy(osfs.New("/"), filepath.Join(goroot, "src/github.com/gopherjs/gopherjs/js"), osfs.New("/"), filepath.Join(build.Default.GOPATH, "src/github.com/gopherjs/gopherjs/js")); err != nil {
 		t.Fatal(err)
 	}
-	if err := copier.Copy(filepath.Join(build.Default.GOPATH, "src/github.com/gopherjs/gopherjs/nosync"), filepath.Join(goroot, "src/github.com/gopherjs/gopherjs/nosync"), osfs.New("/"), osfs.New("/")); err != nil {
+	if err := fsutil.Copy(osfs.New("/"), filepath.Join(goroot, "src/github.com/gopherjs/gopherjs/nosync"), osfs.New("/"), filepath.Join(build.Default.GOPATH, "src/github.com/gopherjs/gopherjs/nosync")); err != nil {
 		t.Fatal(err)
 	}
 
 	goroot1 := memfs.New()
-	if err := copier.Copy("/src", "/goroot/src", osfs.New(build.Default.GOROOT), goroot1); err != nil {
+	if err := fsutil.Copy(goroot1, "/goroot/src", osfs.New(build.Default.GOROOT), "/src"); err != nil {
 		t.Fatal(err)
 	}
-	if err := copier.Copy("/src/github.com/gopherjs/gopherjs/js", "/goroot/src/github.com/gopherjs/gopherjs/js", osfs.New(build.Default.GOPATH), goroot1); err != nil {
+	if err := fsutil.Copy(goroot1, "/goroot/src/github.com/gopherjs/gopherjs/js", osfs.New(build.Default.GOPATH), "/src/github.com/gopherjs/gopherjs/js"); err != nil {
 		t.Fatal(err)
 	}
-	if err := copier.Copy("/src/github.com/gopherjs/gopherjs/nosync", "/goroot/src/github.com/gopherjs/gopherjs/nosync", osfs.New(build.Default.GOPATH), goroot1); err != nil {
+	if err := fsutil.Copy(goroot1, "/goroot/src/github.com/gopherjs/gopherjs/nosync", osfs.New(build.Default.GOPATH), "/src/github.com/gopherjs/gopherjs/nosync"); err != nil {
 		t.Fatal(err)
 	}
 
