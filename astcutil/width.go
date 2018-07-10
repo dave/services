@@ -12,47 +12,89 @@ func Width(n ast.Node) int {
 
 	// Comments and fields
 	case *ast.Comment:
+		if n == nil {
+			return 0
+		}
 		return len(n.Text)
 
 	case *ast.CommentGroup:
+		if n == nil {
+			return 0
+		}
 		var count int
 		for i, c := range n.List {
 			if i > 0 {
-				// between comments, there can be whitespace. We calculate this by comparing the start
-				// and end positions of the comments.
-				whitespaceStart := n.List[i-1].End()
-				whitespaceEnd := c.Pos()
-				count += int(whitespaceEnd - whitespaceStart)
+				// between comments, there can be multiple whitespace. We calculate this by comparing
+				// the start and end positions of the comments.
+				// count += int(c.Pos() - n.List[i-1].End())
+
+				// actually, once formatted correctly, there is always a single whitespace between comments
+				// within a comment group
+				// TODO: confirm this.
+				count++
 			}
 			count += Width(c)
 		}
 		return count
 
-		//if n != nil {
-		//	a.applyList(n, "List")
-		//}
-
 	case *ast.Field:
-		//a.apply(n, "Doc", nil, n.Doc)
-		//a.applyList(n, "Names")
-		//a.apply(n, "Type", nil, n.Type)
-		//a.apply(n, "Tag", nil, n.Tag)
-		//a.apply(n, "Comment", nil, n.Comment)
+		if n == nil {
+			return 0
+		}
+		var count int
+		count += Width(n.Doc)
+		for i, name := range n.Names {
+			if i > 0 {
+				count++ // comma
+			}
+			count += Width(name)
+			count++ // separator / whitespace after name
+		}
+		count += Width(n.Type)
+		if n.Tag != nil {
+			count++ // whitespace before tag
+		}
+		count += Width(n.Tag)
+		if n.Comment != nil {
+			// TODO: needs test
+			count++ // whitespace before comment
+		}
+		count += Width(n.Comment)
+		return count
 
 	case *ast.FieldList:
-		//a.applyList(n, "List")
+		var count int
+		for i, f := range n.List {
+			if i > 0 {
+				fmt.Println(n.List[i-1].End(), f.Pos())
+			}
+			count += Width(f)
+		}
+		return count
 
 		// Expressions
 	case *ast.BadExpr:
+		if n == nil {
+			return 0
+		}
 		return int(n.To - n.From)
 
 	case *ast.Ident:
+		if n == nil {
+			return 0
+		}
 		return len(n.Name)
 
 	case *ast.BasicLit:
+		if n == nil {
+			return 0
+		}
 		return len(n.Value)
 
 	case *ast.Ellipsis:
+		if n == nil {
+			return 0
+		}
 		return Width(n.Elt) + 3
 
 	case *ast.FuncLit:

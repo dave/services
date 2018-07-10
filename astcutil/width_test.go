@@ -1,51 +1,83 @@
 package astcutil
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"strings"
 	"testing"
 )
 
-func TestWidthExpr(t *testing.T) {
+func TestWidth(t *testing.T) {
 	parseExpr := func(code string) ast.Expr {
+
 		expr, err := parser.ParseExpr(code)
 		if err != nil {
 			panic(err)
 		}
+
+		buf := &bytes.Buffer{}
+		if err := format.Node(buf, token.NewFileSet(), expr); err != nil {
+			panic(err)
+		}
+		if buf.String() != code {
+			panic(fmt.Errorf("input code doesn't match formatted AST. input:\n----------------\n%s\n----------------\nAST:\n----------------\n%s\n----------------", code, buf.String()))
+		}
+
 		return expr
 	}
 	parseFile := func(code string) *ast.File {
+
 		if !strings.HasPrefix(code, "package ") {
-			code = "package a\n" + code
+			// for convenience: handle file with omitted package
+			code = "package a\n\n" + code
 		}
-		f, err := parser.ParseFile(token.NewFileSet(), "a.go", code, parser.ParseComments)
+		if !strings.HasSuffix(code, "\n") {
+			code += "\n"
+		}
+
+		formatted, err := format.Source([]byte(code))
 		if err != nil {
 			panic(err)
 		}
+		if string(formatted) != code {
+			panic(fmt.Errorf("input code doesn't match formatted AST. input:\n----------------\n%s\n----------------\nAST:\n----------------\n%s\n----------------", code, string(formatted)))
+		}
+
+		fset := token.NewFileSet()
+
+		f, err := parser.ParseFile(fset, "a.go", code, parser.ParseComments)
+		if err != nil {
+			panic(err)
+		}
+
+		// ensure the input string is well formatted
+
 		return f
 	}
 	tests := map[string]testspec{
 		"simple": {
-			node:     parseExpr("i").(*ast.Ident),
+			node:     parseExpr("a").(*ast.Ident),
 			expected: 1,
 		},
 		"string literal": {
-			node:     parseExpr("\"foo\"").(*ast.BasicLit),
-			expected: 5,
+			node:     parseExpr("\"a\"").(*ast.BasicLit),
+			expected: 3,
 		},
 		"float literal": {
-			node:     parseExpr("1.45").(*ast.BasicLit),
-			expected: 4,
+			node:     parseExpr("1.1").(*ast.BasicLit),
+			expected: 3,
 		},
 		"bad expr": {
 			node:     &ast.BadExpr{From: 5, To: 10},
 			expected: 5,
 		},
 		"elipsis param": {
-			node:     parseExpr("func(i ...int){}").(*ast.FuncLit).Type.Params.List[0].Type.(*ast.Ellipsis),
-			expected: 6,
+			node:     parseExpr("func(i ...T) {\n}").(*ast.FuncLit).Type.Params.List[0].Type.(*ast.Ellipsis),
+			expected: 4,
 		},
 		"elipsis type": {
 			node:     parseExpr("[...]T{1}").(*ast.CompositeLit).Type.(*ast.ArrayType).Len.(*ast.Ellipsis),
@@ -60,17 +92,40 @@ func TestWidthExpr(t *testing.T) {
 			expected: 7,
 		},
 		"comment group line": {
-			node:     parseFile("// a\n// bb").Comments[0],
-			expected: 10, // includes one whitespace between comments
+			node:     parseFile("// a\n// b").Comments[0],
+			expected: 9, // includes whitespace between comments
 		},
 		"comment group inline": {
-			node:     parseFile("/* a *//* bb */").Comments[0],
-			expected: 15,
+			node:     parseFile("/* a */ /* b */").Comments[0],
+			expected: 15, // includes whitespace between comments
 		},
-		"comment group inline with whitespace": {
-			node:     parseFile("/* a */   /* bb */").Comments[0],
-			expected: 18, // includes three whitespace between comments
+		"comment group mixed": {
+			node:     parseFile("// a\n/* b */ // c").Comments[0],
+			expected: 17,
 		},
+		"field": {
+			node:     parseFile("type T struct{ a int }").Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType).Fields.List[0],
+			expected: 5,
+		},
+		"field multiple names": {
+			node:     parseFile("type T struct{ a, b int }").Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType).Fields.List[0],
+			expected: 8,
+		},
+		"field multiple names new lines": {
+			node:     parseFile("type T struct {\n\ta,\n\tb int\n}").Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType).Fields.List[0],
+			expected: 999,
+		},
+		"field with tag": {
+			node:     parseFile("type T struct {\n\ta int `a`\n}").Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType).Fields.List[0],
+			expected: 9,
+		},
+		"fieldlist": {
+			node:     parseFile("type T struct {\n\ta int\n\tb string\n}").Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType).Fields,
+			expected: 999,
+		},
+		// "field with line comment":
+		// TODO: *ast.Field.Comment only for interface / signature?
+
 	}
 	single := ""
 	if single != "" {
@@ -92,7 +147,7 @@ func TestWidthExpr(t *testing.T) {
 		}
 	}
 	if single != "" {
-		t.Fatal("test passed but in single mode so failing")
+		t.Fatal("single mode so failing")
 	}
 }
 
