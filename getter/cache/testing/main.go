@@ -1,15 +1,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"os"
 
-	"io"
-
-	"fmt"
-
-	"errors"
-
-	"github.com/dave/services/fsprinter"
+	"github.com/dave/services/fsutil"
 	"gopkg.in/src-d/go-billy-siva.v4"
 	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/memfs"
@@ -139,7 +136,7 @@ func Get(url string) error {
 		}
 	}
 
-	fsprinter.Print(worktree)
+	fsutil.Print(worktree)
 
 	return nil
 }

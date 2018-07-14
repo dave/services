@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	billy "gopkg.in/src-d/go-billy.v4"
+	"gopkg.in/src-d/go-billy.v4"
 )
 
 // Copy copies src to dest, doesn't matter if src is a directory or a file
@@ -42,37 +42,44 @@ func copyInternal(src, dest string, info os.FileInfo, srcFs, dstFs billy.Filesys
 	return fcopy(src, dest, info, srcFs, dstFs, filter)
 }
 
-func fcopy(src, dest string, info os.FileInfo, srcFs, dstFs billy.Filesystem, filter filterFunc) error {
+func fcopy(srcpath, destpath string, srcinfo os.FileInfo, srcfs, destfs billy.Filesystem, filter filterFunc) error {
 
-	if filter != nil && !filter(src, false) {
+	if filter != nil && !filter(srcpath, false) {
 		return nil
 	}
 
-	f, err := dstFs.Create(dest)
+	dir, _ := filepath.Split(destpath)
+	if err := destfs.MkdirAll(dir, 0777); err != nil {
+		return err
+	}
+	dst, err := destfs.OpenFile(destpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, srcinfo.Mode())
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer dst.Close()
 
-	var s billy.File
+	var src billy.File
 	done := make(chan struct{})
 	go func() {
-		s, err = srcFs.Open(src)
+		src, err = srcfs.Open(srcpath)
 		close(done)
 	}()
 	select {
 	case <-done:
 		// nothing
 	case <-time.After(time.Second):
-		return fmt.Errorf("timed out opening %s", src)
+		return fmt.Errorf("timed out opening %s", srcpath)
 	}
 	if err != nil {
 		return err
 	}
-	defer s.Close()
+	defer src.Close()
 
-	_, err = io.Copy(f, s)
-	return err
+	if _, err := io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func dcopy(src, dest string, info os.FileInfo, srcFs, dstFs billy.Filesystem, filter filterFunc) error {

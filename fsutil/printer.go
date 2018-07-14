@@ -1,4 +1,4 @@
-package fsprinter
+package fsutil
 
 import (
 	"fmt"
