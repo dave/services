@@ -1,4 +1,4 @@
-package asthelpers
+package progutils
 
 import (
 	"go/ast"
