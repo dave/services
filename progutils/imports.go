@@ -121,35 +121,52 @@ func (ih *ImportsHelper) RefreshFromFile() error {
 
 }
 
+// PackageSelector gets info about a package from the SelectorExpr
+// packagePath: the package path of the imported package
+// packageName: the actual name of the imported package
+// importAlias: the alias in the import statement (can be "")
+// codeAlias: the alias used in the code (if importAlias == "", codeAlias == packageName)
+func PackageSelector(se *ast.SelectorExpr, path string, prog *loader.Program) (packagePath, packageName, importAlias, codeAlias string) {
+	id, ok := se.X.(*ast.Ident)
+	if !ok {
+		return
+	}
+	use, ok := prog.Package(path).Uses[id]
+	if !ok {
+		return
+	}
+	pn, ok := use.(*types.PkgName)
+	if !ok {
+		return
+	}
+	packagePath = pn.Imported().Path()
+	packageName = prog.Package(packagePath).Pkg.Name()
+	codeAlias = pn.Name()
+	if packageName != codeAlias {
+		importAlias = codeAlias
+	}
+	return
+}
+
 // RefreshFromCode scans all the code for SelectorElements
 func (ih *ImportsHelper) RefreshFromCode() error {
-	info := ih.prog.Package(ih.path)
 	imports := map[string]string{}
 	var err error
 	astutil.Apply(ih.file, func(c *astutil.Cursor) bool {
 		switch n := c.Node().(type) {
 		case *ast.SelectorExpr:
-			id, ok := n.X.(*ast.Ident)
-			if !ok {
+			packagePath, _, importAlias, _ := PackageSelector(n, ih.path, ih.prog)
+			if packagePath == "" {
 				return true
 			}
-			use, ok := info.Uses[id]
+			currentAlias, ok := imports[packagePath]
 			if !ok {
+				imports[packagePath] = importAlias
 				return true
 			}
-			pn, ok := use.(*types.PkgName)
-			if !ok {
-				return true
-			}
-			name := pn.Name()
-			path := pn.Imported().Path()
-
-			if imports[path] == name {
-				return true
-			} else if imports[path] == "" {
-				imports[path] = name
-			} else {
-				err = fmt.Errorf("import for %s uses different name in 2 files", path)
+			if importAlias != currentAlias {
+				err = fmt.Errorf("import for %s uses different name in 2 files", packagePath)
+				return false
 			}
 		}
 		return true
