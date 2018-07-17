@@ -199,14 +199,61 @@ func (l *Libifier) updateDecls() error {
 				case *ast.FuncDecl:
 					switch {
 					case pkg.methods[n]:
-						// if method, add "psess *PackageSession" as the first parameter
-						psess := &ast.Field{
-							Names: []*ast.Ident{ast.NewIdent("psess")},
-							Type: &ast.StarExpr{
-								X: ast.NewIdent("PackageSession"),
+						// if method, to preserve method signature for interface satisfaction, we alter
+						// the method to accept the package session, and return a function with the
+						// signature we need - e.g. from:
+						//
+						// func (T)foo(a, b int) int {
+						//     return a+b
+						// }
+						//
+						// to:
+						//
+						// func (T)foo(psess *PackageSession) func(a, b int) int {
+						//	   return func(a, b int) int {
+						// 	       return a+b
+						//     }
+						// }
+						//
+
+						// Change the results to return a function
+						n.Type.Results = &ast.FieldList{
+							List: []*ast.Field{
+								{
+									Type: &ast.FuncType{
+										Func: 1,
+										Params: &ast.FieldList{
+											List: n.Type.Params.List,
+										},
+										Results: n.Type.Results,
+									},
+								},
 							},
 						}
-						n.Type.Params.List = append([]*ast.Field{psess}, n.Type.Params.List...)
+
+						// Add the new parameter
+						n.Type.Params.List = []*ast.Field{
+							{
+								Names: []*ast.Ident{ast.NewIdent("psess")},
+								Type: &ast.StarExpr{
+									X: ast.NewIdent("PackageSession"),
+								},
+							},
+						}
+
+						// Enclose the body in a function literal
+						n.Body = &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.ReturnStmt{
+									Results: []ast.Expr{
+										&ast.FuncLit{
+											Type: n.Type.Results.List[0].Type.(*ast.FuncType),
+											Body: n.Body,
+										},
+									},
+								},
+							},
+						}
 						c.Replace(n)
 					case pkg.funcs[n]:
 						// if func, add "psess *PackageSession" as the receiver
@@ -522,24 +569,19 @@ func (l *Libifier) updateMethodUsage() error {
 		for fname, file := range pkg.Files {
 			result := astutil.Apply(file, func(c *astutil.Cursor) bool {
 				switch n := c.Node().(type) {
-				case *ast.CallExpr:
-					var id *ast.Ident
-					switch fun := n.Fun.(type) {
-					case *ast.Ident:
-						id = fun
-					case *ast.SelectorExpr:
-						id = fun.Sel
-					default:
-						return true
-					}
-					use, ok := pkg.Info.Uses[id]
+				case *ast.SelectorExpr:
+					use, ok := pkg.Info.Uses[n.Sel]
 					if !ok {
 						return true
 					}
-					if pkg.methodObjects[use] {
-						n.Args = append([]ast.Expr{ast.NewIdent("psess")}, n.Args...)
+					if !pkg.methodObjects[use] {
+						return true
 					}
-					c.Replace(n)
+					n1 := &ast.CallExpr{
+						Fun:  n,
+						Args: []ast.Expr{ast.NewIdent("psess")},
+					}
+					c.Replace(n1)
 				}
 				return true
 			}, nil)

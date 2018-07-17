@@ -41,11 +41,31 @@ func TestAll(t *testing.T) {
 					}`,
 			},
 		},
+		"libify simple method": {
+			files:    `type T int; func (T) Foo(a, b int) int { return a + b }`,
+			mutators: Libify{[]string{"a"}},
+			expected: map[string]string{
+				"a.go": `type T int; func (T) Foo(psess *PackageSession) func (a, b int) int {
+					return func(a, b int) int { 
+						return a + b 
+					}
+				}`,
+				"package-session.go": `
+					type PackageSession struct {
+					}
+					func NewPackageSession() *PackageSession {
+						psess := &PackageSession{}
+						return psess
+					}`,
+			},
+		},
 		"libify other methods": {
 			files:    `type F string; func (f F) Foo() {}`,
 			mutators: Libify{[]string{"a"}},
 			expected: map[string]string{
-				"a.go": `type F string; func (f F) Foo(psess *PackageSession) {}`,
+				"a.go": `type F string; func (f F) Foo(psess *PackageSession) func() {
+						return func() {}
+					}`,
 				"package-session.go": `
 					type PackageSession struct {
 					}
@@ -117,10 +137,14 @@ func TestAll(t *testing.T) {
 			expected: map[string]string{
 				"a.go": `type T struct{}
 					
-					func (T) a(psess *PackageSession) int { return 1 }
+					func (T) a(psess *PackageSession) func() int {
+						return func() int {
+							return 1
+						}
+					}
 
 					func (psess *PackageSession) d() int {
-						return psess.b.a(psess)
+						return psess.b.a(psess)()
 					}`,
 				"package-session.go": `
 					type PackageSession struct {
@@ -131,7 +155,7 @@ func TestAll(t *testing.T) {
 						psess := &PackageSession{}
 						psess.b = T{}
 						psess.c = psess.
-							b.a(psess)
+							b.a(psess)()
 						return psess
 					}`,
 			},
