@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
 )
 
-func NewImportsHelper(file *ast.File, prog *loader.Program) *ImportsHelper {
-	return &ImportsHelper{file: file, prog: prog}
+func NewImportsHelper(path string, file *ast.File, prog *loader.Program) *ImportsHelper {
+	return &ImportsHelper{path: path, file: file, prog: prog}
 }
 
 type ImportsHelper struct {
+	path string
 	file *ast.File
 	prog *loader.Program
 }
@@ -119,7 +121,56 @@ func (ih *ImportsHelper) RefreshFromFile() error {
 
 }
 
+// RefreshFromCode scans all the code for SelectorElements
+func (ih *ImportsHelper) RefreshFromCode() error {
+	info := ih.prog.Package(ih.path)
+	imports := map[string]string{}
+	var err error
+	astutil.Apply(ih.file, func(c *astutil.Cursor) bool {
+		switch n := c.Node().(type) {
+		case *ast.SelectorExpr:
+			id, ok := n.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			use, ok := info.Uses[id]
+			if !ok {
+				return true
+			}
+			pn, ok := use.(*types.PkgName)
+			if !ok {
+				return true
+			}
+			name := pn.Name()
+			path := pn.Imported().Path()
+
+			if imports[path] == name {
+				return true
+			} else if imports[path] == "" {
+				imports[path] = name
+			} else {
+				err = fmt.Errorf("import for %s uses different name in 2 files", path)
+			}
+		}
+		return true
+	}, nil)
+	if err != nil {
+		return err
+	}
+	if err := ih.Refresh(imports); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ih *ImportsHelper) Refresh(imports map[string]string) error {
+
+	// first clear any import aliases that are the same as the package name
+	for path, name := range imports {
+		if ih.prog.Package(path).Pkg.Name() == name {
+			imports[path] = ""
+		}
+	}
 
 	gd, specsFromTree, importsFromTree, err := ih.ImportsFromTree()
 	if err != nil {
@@ -150,6 +201,18 @@ func (ih *ImportsHelper) Refresh(imports map[string]string) error {
 			deleted[path] = true
 		}
 	}
+
+	/*
+		if len(missing) > 0 {
+			fmt.Println("adding missing imports:", missing)
+		}
+		if len(deleted) > 0 {
+			fmt.Println("removing deleted imports:", deleted)
+		}
+		if len(changed) > 0 {
+			fmt.Println("updating changed imports:", changed)
+		}
+	*/
 
 	for path, name := range missing {
 		is := &ast.ImportSpec{
@@ -212,6 +275,24 @@ func (ih *ImportsHelper) Refresh(imports map[string]string) error {
 		if err != nil {
 			return err
 		}
+		// Scan again deleting any empty GenDecls
+		astutil.Apply(ih.file, func(c *astutil.Cursor) bool {
+			switch n := c.Node().(type) {
+			case *ast.GenDecl:
+				switch n.Tok {
+				case token.IMPORT:
+					if len(n.Specs) == 0 {
+						c.Delete()
+					}
+					return true
+				case token.PACKAGE:
+					return true
+				default:
+					return false // stop as soon as we reach a GenDecl that's not a package or import
+				}
+			}
+			return true
+		}, nil)
 	}
 
 	// update File.Imports

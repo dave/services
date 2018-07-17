@@ -115,7 +115,7 @@ func runTest(spec testspec) error {
 		return err
 	}
 
-	ih := NewImportsHelper(mainFile, prog)
+	ih := NewImportsHelper("a", mainFile, prog)
 	if err := spec.action(ih); err != nil {
 		return err
 	}
