@@ -15,6 +15,7 @@ import (
 type Fileserver interface {
 	Write(ctx context.Context, bucket, name string, reader io.Reader, overwrite bool, contentType, cacheControl string) (saved bool, err error)
 	Read(ctx context.Context, bucket, name string, writer io.Writer) (found bool, err error)
+	Exists(ctx context.Context, bucket, name string) (bool, error)
 }
 
 // Database provides the functionality to persist and recall data. In production we use the gcs datastore.

@@ -33,6 +33,10 @@ type item struct {
 	data []byte
 }
 
+func (f *Fileserver) Exists(ctx context.Context, bucket, name string) (bool, error) {
+	panic("exists not implemented for cachefileserver")
+}
+
 func (f *Fileserver) Write(ctx context.Context, bucket, name string, reader io.Reader, overwrite bool, contentType, cacheControl string) (saved bool, err error) {
 
 	key := filepath.Join(bucket, name)

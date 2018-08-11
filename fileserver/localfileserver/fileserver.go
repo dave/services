@@ -36,17 +36,34 @@ type Fileserver struct {
 	dir string
 }
 
+func (f *Fileserver) Exists(ctx context.Context, bucket, name string) (bool, error) {
+	return f.exists(ctx, filepath.Join(f.dir, bucket, url.PathEscape(name)))
+}
+
+func (f *Fileserver) exists(ctx context.Context, fpath string) (bool, error) {
+	_, err := os.Stat(fpath)
+	if err == nil {
+		// err == nil => file exists
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		// os.IsNotExist(err) => file doesn't exist
+		return false, nil
+	}
+	// !os.IsNotExist(err) => any other error, so return the error
+	return false, err
+}
+
 func (f *Fileserver) Write(ctx context.Context, bucket, name string, reader io.Reader, overwrite bool, contentType, cacheControl string) (saved bool, err error) {
 	fdir := filepath.Join(f.dir, bucket)
 	fpath := filepath.Join(f.dir, bucket, url.PathEscape(name))
 	if !overwrite {
-		// err == nil => file exists, return with saved == false
-		// os.IsNotExist(err) => file doesn't exist, so continue and write file
-		// !os.IsNotExist(err) => any other error, so return the error
-		if _, err := os.Stat(fpath); err == nil {
-			return false, nil
-		} else if !os.IsNotExist(err) {
+		exists, err := f.exists(ctx, fpath)
+		if err != nil {
 			return false, err
+		}
+		if exists {
+			return false, nil
 		}
 	}
 	if err := os.MkdirAll(fdir, 0777); err != nil {

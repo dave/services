@@ -22,16 +22,33 @@ type Fileserver struct {
 	buckets map[string]*storage.BucketHandle
 }
 
+func (f *Fileserver) Exists(ctx context.Context, bucket, name string) (bool, error) {
+	return f.exists(ctx, f.buckets[bucket].Object(name))
+}
+
+func (f *Fileserver) exists(ctx context.Context, ob *storage.ObjectHandle) (bool, error) {
+	_, err := ob.Attrs(ctx)
+	if err == nil {
+		// err == nil => file exists
+		return true, nil
+	}
+	if err == storage.ErrObjectNotExist {
+		// err == storage.ErrObjectNotExist => file doesn't exist
+		return false, nil
+	}
+	// err != storage.ErrObjectNotExist => an error, so return the error
+	return false, err
+}
+
 func (f *Fileserver) Write(ctx context.Context, bucket, name string, reader io.Reader, overwrite bool, contentType, cacheControl string) (saved bool, err error) {
 	ob := f.buckets[bucket].Object(name)
 	if !overwrite {
-		// err == nil => file exists, return with saved == false
-		// err == storage.ErrObjectNotExist => file doesn't exist, so continue and write file
-		// err != storage.ErrObjectNotExist => any other error, so return the error
-		if _, err := ob.Attrs(ctx); err == nil {
-			return false, nil
-		} else if err != storage.ErrObjectNotExist {
+		exists, err := f.exists(ctx, ob)
+		if err != nil {
 			return false, err
+		}
+		if exists {
+			return false, nil
 		}
 	}
 	wc := ob.NewWriter(ctx)
