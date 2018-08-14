@@ -139,6 +139,7 @@ const (
 	MimeBin  = "application/octet-stream"
 	MimeHtml = "text/html"
 	MimeZip  = "application/zip"
+	MimeWasm = "application/wasm"
 )
 
 type Item struct {
