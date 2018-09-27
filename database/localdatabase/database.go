@@ -13,11 +13,16 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/mitchellh/go-homedir"
 )
 
 func New(dir string) *Database {
+	expanded, err := homedir.Expand(dir)
+	if err != nil {
+		panic(err)
+	}
 	return &Database{
-		dir: dir,
+		dir: expanded,
 	}
 }
 

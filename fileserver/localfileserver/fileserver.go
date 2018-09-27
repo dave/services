@@ -9,14 +9,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 func New(dir string, sites []string, host, bucket map[string]string) *Fileserver {
+	expanded, err := homedir.Expand(dir)
+	if err != nil {
+		panic(err)
+	}
 	for _, site := range sites {
-		go http.ListenAndServe(host[site], pathEscape(http.FileServer(http.Dir(filepath.Join(dir, bucket[site])))))
+		go http.ListenAndServe(host[site], pathEscape(http.FileServer(http.Dir(filepath.Join(expanded, bucket[site])))))
 	}
 	return &Fileserver{
-		dir: dir,
+		dir: expanded,
 	}
 }
 
