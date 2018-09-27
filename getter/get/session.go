@@ -42,7 +42,7 @@ func New(sess *session.Session, send func(services.Message), cache *cache.Reques
 	g.downloadRootCache = make(map[string]*repoRoot) // key is the root dir of the repo
 	g.repoPackages = make(map[string]*repoRoot)      // key is the path of the package. NOTE: not all packages are included, but the ones we're interested in should be.
 	g.fetchCache = make(map[string]fetchResult)
-	g.buildContext = g.session.BuildContext(session.DefaultType, "")
+	g.buildContext = g.session.BuildContext(session.JsType, "")
 	return g
 }
 
