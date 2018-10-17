@@ -18,6 +18,7 @@ import (
 	"gopkg.in/src-d/go-billy.v4/memfs"
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/cache"
 	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"gopkg.in/src-d/go-git.v4/storage/filesystem"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
@@ -107,10 +108,7 @@ func (f *Fetcher) initFilesystems() (persisted billy.Filesystem, sfs sivafs.Siva
 		return nil, nil, nil, nil, err
 	}
 
-	store, err = filesystem.NewStorage(sfs)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
+	store = filesystem.NewStorage(sfs, cache.NewObjectLRUDefault())
 
 	worktree = memfs.New()
 
