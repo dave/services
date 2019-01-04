@@ -16,10 +16,12 @@ import (
 	git "gopkg.in/src-d/go-git.v4"
 )
 
-func New() *ResolverFetcher {
+func New() (*ResolverFetcher, error) {
 	rf := &ResolverFetcher{}
-	rf.init()
-	return rf
+	if err := rf.init(); err != nil {
+		return nil, err
+	}
+	return rf, nil
 }
 
 // FetcherResolver satisfies the Fetcher and Resolver interfaces in order to use the local GOPATH for
@@ -64,6 +66,7 @@ func (f *ResolverFetcher) init() error {
 		f.repos = map[string]string{}
 		f.packages = map[string]string{}
 		src := filepath.Join(build.Default.GOPATH, "src")
+
 		// scan gopath and make a list of all the repos
 		if err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 			if !info.IsDir() {
@@ -79,15 +82,15 @@ func (f *ResolverFetcher) init() error {
 				if os.IsNotExist(err) {
 					return nil
 				}
-				return err
+				return nil // ignore error
 			}
 			r, err := git.PlainOpen(path)
 			if err != nil {
-				return err
+				return nil // ignore error
 			}
 			o, err := r.Remote("origin")
 			if err != nil {
-				return err
+				return nil // ignore error
 			}
 			f.saveRepo(o.Config().URLs[0], path)
 			f.savePackage(packagePath, o.Config().URLs[0])
